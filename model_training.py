@@ -1,5 +1,9 @@
+import os
+
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import GridSearchCV
+
+os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "True"
 
 
 def train_optimize(X_train, y_train):
@@ -21,7 +25,7 @@ def train_optimize(X_train, y_train):
         cv=5,
         n_jobs=-1,
         scoring="accuracy",
-        verbose=2,
+        verbose=1,
     )
 
     # Fit grid_search to the data
