@@ -32,3 +32,7 @@ def ml_pipeline():
 
     print("Best Parameters:", best_parameters)
     print("Best Score:", best_score)
+
+
+if __name__ == "__main__":
+    ml_pipeline()
