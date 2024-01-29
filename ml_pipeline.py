@@ -22,6 +22,19 @@ def get_dataset(data="train"):
     return df
 
 
+def data_cleaning(df, age_median=None, fare_median=None):
+    # impute nulls for continuous data
+    if age_median is None:
+        age_median = df.Age.median()
+    if fare_median is None:
+        fare_median = df.Fare.median()
+
+    df.Age = df.Age.fillna(age_median)
+    df.Fare = df.Fare.fillna(fare_median)
+
+    return df, age_median, fare_median
+
+
 def feature_engineering(df, scale=False):
     df["cabin_multiple"] = df.Cabin.apply(
         lambda x: 0 if pd.isna(x) else len(x.split(" "))
@@ -98,8 +111,9 @@ def ml_pipeline():
     numeric_cols = ["Age", "SibSp", "Parch", "Fare"]
     categorial_cols = ["Survived", "Pclass", "Sex", "Ticket", "Cabin", "Embarked"]
 
-    df = data_cleaning(df)
-    feature_engineering(dataset, numeric_cols, categorial_cols)
+    dataset, age_median, fare_median = data_cleaning(dataset)
+
+    feature_engineering(dataset, scale=False)  # TODO: scale=True
 
     y = dataset["Survived"]
     features = ["Pclass", "Sex", "SibSp", "Parch"]
