@@ -32,6 +32,9 @@ def data_cleaning(df, age_median=None, fare_median=None):
     df.Age = df.Age.fillna(age_median)
     df.Fare = df.Fare.fillna(fare_median)
 
+    # drop null 'embarked' rows. Only 2 instances of this in training and 0 in test
+    df.dropna(subset=["Embarked"], inplace=True)
+
     return df, age_median, fare_median
 
 
@@ -50,11 +53,7 @@ def feature_engineering(df, scale=False):
 
     df["name_title"] = df.Name.apply(lambda x: x.split(",")[1].split(".")[0].strip())
 
-    # Data Cleaning
-    # drop null 'embarked' rows. Only 2 instances of this in training and 0 in test
-    df.dropna(subset=["Embarked"], inplace=True)
-
-    # log norm of fare (used)
+    # log norm of fare
     df["norm_fare"] = np.log(df.Fare + 1)
 
     # converted fare to category for pd.get_dummies()
@@ -113,7 +112,7 @@ def ml_pipeline():
 
     dataset, age_median, fare_median = data_cleaning(dataset)
 
-    feature_engineering(dataset, scale=False)  # TODO: scale=True
+    dataset = feature_engineering(dataset, scale=False)  # TODO: scale=True
 
     y = dataset["Survived"]
     features = ["Pclass", "Sex", "SibSp", "Parch"]
