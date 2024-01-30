@@ -38,7 +38,7 @@ def data_cleaning(df, age_median=None, fare_median=None):
     return df, age_median, fare_median
 
 
-def feature_engineering(df, scale=False):
+def feature_engineering(df, ohe_encoder=None, scale=False):
     df["cabin_multiple"] = df.Cabin.apply(
         lambda x: 0 if pd.isna(x) else len(x.split(" "))
     )
@@ -60,7 +60,11 @@ def feature_engineering(df, scale=False):
     df.Pclass = df.Pclass.astype(str)
 
     df.reset_index(drop=True, inplace=True)
-    survived = df.Survived
+
+    if "Survived" in df.columns:
+        survived = df.Survived
+    else:
+        survived = None
 
     # Select the columns for one-hot encoding
     columns_to_encode = [
@@ -80,17 +84,19 @@ def feature_engineering(df, scale=False):
     categorical_cols = df[columns_to_encode].select_dtypes(include=["object"]).columns
     numeric_cols = df[columns_to_encode].select_dtypes(exclude=["object"]).columns
 
-    encoder = OneHotEncoder(
-        handle_unknown="ignore"
-    )  # test data or new incoming data might have categories not seen in the training phase. It ensures that your pipeline is robust to such discrepancies.
+    if ohe_encoder is None:
+        ohe_encoder = OneHotEncoder(
+            handle_unknown="ignore"
+        )  # test data or new incoming data might have categories not seen in the training phase. It ensures that your pipeline is robust to such discrepancies.
 
-    # Fit and transform the selected columns
-    encoder.fit(df[categorical_cols])
-    encoded_categorical_data = encoder.transform(df[categorical_cols])
+        # Fit and transform the selected columns
+        ohe_encoder.fit(df[categorical_cols])
+
+    encoded_categorical_data = ohe_encoder.transform(df[categorical_cols])
 
     encoded_categorical_df = pd.DataFrame(
         encoded_categorical_data.toarray(),
-        columns=encoder.get_feature_names_out(categorical_cols),
+        columns=ohe_encoder.get_feature_names_out(categorical_cols),
         index=df.index,
     )
 
@@ -102,15 +108,22 @@ def feature_engineering(df, scale=False):
     if scale:
         from sklearn.preprocessing import StandardScaler
 
-        scale = StandardScaler()
-        processed_df[["Age", "SibSp", "Parch", "norm_fare"]] = scale.fit_transform(
+        scaler = StandardScaler()
+
+        scaler.fit(df[["Age", "SibSp", "Parch", "norm_fare"]])
+
+        processed_df[["Age", "SibSp", "Parch", "norm_fare"]] = scaler.transform(
             df[["Age", "SibSp", "Parch", "norm_fare"]]
         )
 
-    return processed_df, encoder
+        return processed_df, ohe_encoder, scaler
+
+    else:
+        return processed_df, ohe_encoder
 
 
 def ml_pipeline():
+    # Train model
     dataset = get_dataset(data="train")
 
     # numeric_cols = ["Age", "SibSp", "Parch", "Fare"]
@@ -118,18 +131,38 @@ def ml_pipeline():
 
     dataset, age_median, fare_median = data_cleaning(dataset)
 
-    dataset, encoder = feature_engineering(dataset, scale=False)  # TODO: scale=True
+    dataset, ohe_encoder, scaler = feature_engineering(dataset, scale=True)
 
     target = "Survived"
     y = dataset[target]
-    # features = ["Pclass", "Sex", "SibSp", "Parch"]
     X = dataset.drop([target], axis=1)
 
-    best_parameters, best_score = train_optimize(X, y)
+    best_estimator, best_parameters, best_score = train_optimize(X, y)
 
     print("Best Parameters:", best_parameters)
     print("Best Score:", best_score)
 
+    # Predict on test data
+    dataset = get_dataset(data="test")
+    passenger_id = dataset.PassengerId
+
+    dataset, _, _ = data_cleaning(
+        dataset, age_median=age_median, fare_median=fare_median
+    )
+
+    dataset, _, _ = feature_engineering(dataset, ohe_encoder=ohe_encoder, scale=True)
+
+    X = dataset
+
+    y_pred = best_estimator.predict(X)
+
+    output = pd.DataFrame({"PassengerId": passenger_id, "Survived": y_pred})
+
+    return best_estimator, output
+
 
 if __name__ == "__main__":
-    ml_pipeline()
+    model, y_pred_df = ml_pipeline()
+
+    y_pred_df.to_csv("submission.csv", index=False)
+    print("Your submission was successfully saved!")
