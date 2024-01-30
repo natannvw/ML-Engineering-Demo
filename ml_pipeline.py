@@ -59,6 +59,9 @@ def feature_engineering(df, scale=False):
     # converted fare to category for pd.get_dummies()
     df.Pclass = df.Pclass.astype(str)
 
+    df.reset_index(drop=True, inplace=True)
+    survived = df.Survived
+
     # Select the columns for one-hot encoding
     columns_to_encode = [
         "Pclass",
@@ -72,51 +75,55 @@ def feature_engineering(df, scale=False):
         "cabin_multiple",
         "numeric_ticket",
         "name_title",
-        "train_test",
     ]
 
-    # Create an instance of OneHotEncoder
-    encoder = OneHotEncoder()
+    categorical_cols = df[columns_to_encode].select_dtypes(include=["object"]).columns
+    numeric_cols = df[columns_to_encode].select_dtypes(exclude=["object"]).columns
+
+    encoder = OneHotEncoder(
+        handle_unknown="ignore"
+    )  # test data or new incoming data might have categories not seen in the training phase. It ensures that your pipeline is robust to such discrepancies.
 
     # Fit and transform the selected columns
-    encoded_columns = encoder.fit_transform(df[columns_to_encode]).toarray()
+    encoder.fit(df[categorical_cols])
+    encoded_categorical_data = encoder.transform(df[categorical_cols])
 
-    # Create a DataFrame with the encoded columns
-    encoded_df = pd.DataFrame(
-        encoded_columns, columns=encoder.get_feature_names(columns_to_encode)
+    encoded_categorical_df = pd.DataFrame(
+        encoded_categorical_data.toarray(),
+        columns=encoder.get_feature_names_out(categorical_cols),
+        index=df.index,
     )
 
-    # Concatenate the encoded DataFrame with the original DataFrame
-    df = pd.concat([df, encoded_df], axis=1)
-
-    # Drop the original columns that were encoded
-    # all_dummies.drop(columns_to_encode, axis=1, inplace=True)
+    processed_df = pd.concat(
+        [df[numeric_cols], encoded_categorical_df, survived], axis=1
+    )
 
     # Scale data
     if scale:
         from sklearn.preprocessing import StandardScaler
 
         scale = StandardScaler()
-        df[["Age", "SibSp", "Parch", "norm_fare"]] = scale.fit_transform(
+        processed_df[["Age", "SibSp", "Parch", "norm_fare"]] = scale.fit_transform(
             df[["Age", "SibSp", "Parch", "norm_fare"]]
         )
 
-    return df
+    return processed_df, encoder
 
 
 def ml_pipeline():
     dataset = get_dataset(data="train")
 
-    numeric_cols = ["Age", "SibSp", "Parch", "Fare"]
-    categorial_cols = ["Survived", "Pclass", "Sex", "Ticket", "Cabin", "Embarked"]
+    # numeric_cols = ["Age", "SibSp", "Parch", "Fare"]
+    # categorial_cols = ["Survived", "Pclass", "Sex", "Ticket", "Cabin", "Embarked"]
 
     dataset, age_median, fare_median = data_cleaning(dataset)
 
-    dataset = feature_engineering(dataset, scale=False)  # TODO: scale=True
+    dataset, encoder = feature_engineering(dataset, scale=False)  # TODO: scale=True
 
-    y = dataset["Survived"]
-    features = ["Pclass", "Sex", "SibSp", "Parch"]
-    X = pd.get_dummies(dataset[features])
+    target = "Survived"
+    y = dataset[target]
+    # features = ["Pclass", "Sex", "SibSp", "Parch"]
+    X = dataset.drop([target], axis=1)
 
     best_parameters, best_score = train_optimize(X, y)
 
