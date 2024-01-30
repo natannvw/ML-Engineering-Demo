@@ -8,6 +8,8 @@ os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "True"
 
 def train_optimize(X_train, y_train):
     # Example parameter grid
+    # Best Parameters: {'bootstrap': True, 'criterion': 'entropy', 'max_depth': 8, 'min_samples_leaf': 2, 'min_samples_split': 10, 'n_estimators': 100} TODO
+    # Best Parameters: {'bootstrap': True, 'criterion': 'entropy', 'max_depth': 15, 'min_samples_leaf': 2, 'min_samples_split': 15, 'n_estimators': 100} TODO
     param_grid = {
         "n_estimators": [100, 150, 200, 250, 300],
         "max_depth": [4, 5, 8, 15, None],
@@ -18,7 +20,7 @@ def train_optimize(X_train, y_train):
     }
 
     # Create a RandomForestClassifier
-    rf = RandomForestClassifier()
+    rf = RandomForestClassifier(random_state=42)
 
     # Setup GridSearchCV
     grid_search = GridSearchCV(
