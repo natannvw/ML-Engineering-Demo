@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import numpy as np
@@ -38,7 +39,7 @@ def data_cleaning(df, age_median=None, fare_median=None):
     return df, age_median, fare_median
 
 
-def feature_engineering(df, ohe_encoder=None, scale=False):
+def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
     df["cabin_multiple"] = df.Cabin.apply(
         lambda x: 0 if pd.isna(x) else len(x.split(" "))
     )
@@ -106,11 +107,12 @@ def feature_engineering(df, ohe_encoder=None, scale=False):
 
     # Scale data
     if scale:
-        from sklearn.preprocessing import StandardScaler
+        if scaler is None:
+            from sklearn.preprocessing import StandardScaler
 
-        scaler = StandardScaler()
+            scaler = StandardScaler()
 
-        scaler.fit(df[["Age", "SibSp", "Parch", "norm_fare"]])
+            scaler.fit(df[["Age", "SibSp", "Parch", "norm_fare"]])
 
         processed_df[["Age", "SibSp", "Parch", "norm_fare"]] = scaler.transform(
             df[["Age", "SibSp", "Parch", "norm_fare"]]
@@ -131,7 +133,13 @@ def ml_pipeline():
 
     dataset, age_median, fare_median = data_cleaning(dataset)
 
-    dataset, ohe_encoder, scaler = feature_engineering(dataset, scale=True)
+    scale = True
+    results = feature_engineering(dataset, scale=scale)
+    if scale:
+        dataset, ohe_encoder, scaler = results[0], results[1], results[2]
+    else:
+        scaler = None
+        dataset, ohe_encoder = results[0], results[1]
 
     target = "Survived"
     y = dataset[target]
@@ -150,7 +158,10 @@ def ml_pipeline():
         dataset, age_median=age_median, fare_median=fare_median
     )
 
-    dataset, _, _ = feature_engineering(dataset, ohe_encoder=ohe_encoder, scale=True)
+    results = feature_engineering(
+        dataset, ohe_encoder=ohe_encoder, scale=scale, scaler=scaler
+    )
+    dataset, ohe_encoder = results[0], results[1]
 
     X = dataset
 
@@ -164,5 +175,13 @@ def ml_pipeline():
 if __name__ == "__main__":
     model, y_pred_df = ml_pipeline()
 
-    y_pred_df.to_csv("submission.csv", index=False)
-    print("Your submission was successfully saved!")
+    submission_folder = "Submissions"
+    os.makedirs(submission_folder, exist_ok=True)
+
+    filename = (
+        f"submission_{datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S-%f')}.csv"
+    )
+
+    path = os.path.join(submission_folder, filename)
+
+    y_pred_df.to_csv(path, index=False)
