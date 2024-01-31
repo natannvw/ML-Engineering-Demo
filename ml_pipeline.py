@@ -119,8 +119,10 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
             df[["Age", "SibSp", "Parch", "norm_fare"]]
         )
 
+        return processed_df, ohe_encoder, categorical_cols, scaler
 
     else:
+        return processed_df, ohe_encoder, categorical_cols
 
 
 def powerset(iterable, include_empty=True):
@@ -197,10 +199,15 @@ def ml_pipeline():
     scale = False
     results = feature_engineering(dataset, scale=scale)
     if scale:
-        dataset, ohe_encoder, scaler = results[0], results[1], results[2]
+        dataset, ohe_encoder, categorical_cols, scaler = (
+            results[0],
+            results[1],
+            results[2],
+            results[3],
+        )
     else:
         scaler = None
-        dataset, ohe_encoder = results[0], results[1]
+        dataset, ohe_encoder, categorical_cols = results[0], results[1], results[2]
 
     target = "Survived"
     y = dataset[target]
