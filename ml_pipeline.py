@@ -1,11 +1,12 @@
 import datetime
 import os
+from itertools import chain, combinations
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 
-from model_training import train_optimize
+from model_training import train_optimize  # noqa: F401
 
 
 def get_dataset(data="train"):
@@ -118,10 +119,61 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
             df[["Age", "SibSp", "Parch", "norm_fare"]]
         )
 
-        return processed_df, ohe_encoder, scaler
+        return processed_df, ohe_encoder, categorical_cols, scaler
 
     else:
-        return processed_df, ohe_encoder
+        return processed_df, ohe_encoder, categorical_cols
+
+
+def create_feature_groups(df, categorical_cols):
+    feature_groups = []
+    for cat_col in categorical_cols:
+        # Find all OHE columns for this categorical column
+        ohe_features = [col for col in df.columns if col.startswith(cat_col + "_")]
+        if ohe_features:
+            # Group all OHE columns together
+            feature_groups.append(ohe_features)
+        else:
+            # If no OHE columns, just include the original column
+            feature_groups.append([cat_col])
+
+    # Add non-categorical columns as individual groups
+    non_cat_cols = df.select_dtypes(exclude=["object"]).columns
+    for col in non_cat_cols:
+        if col not in sum(
+            feature_groups, []
+        ):  # Avoid duplicating columns that are already grouped
+            feature_groups.append([col])
+
+    return feature_groups
+
+
+def grouped_powerset(feature_groups, include_empty=True):
+    if include_empty:
+        n = 0
+    else:
+        n = 1
+
+    return list(
+        chain.from_iterable(
+            combinations(feature_groups, r) for r in range(n, len(feature_groups) + 1)
+        )
+    )
+
+
+def get_features_combinations(df, categorical_cols):
+    # combinations = powerset(df.columns, include_empty=False)
+    feature_groups = create_feature_groups(df, categorical_cols)
+
+    flattened_feature_groups = [col for sublist in feature_groups for col in sublist]
+    if not set(flattened_feature_groups) == set(df.columns):
+        raise ValueError(
+            "Feature groups do not cover all columns in the dataframe. Please check the feature groups."
+        )
+
+    grouped_combinations = grouped_powerset(feature_groups, include_empty=False)
+
+    return grouped_combinations
 
 
 def ml_pipeline():
@@ -136,19 +188,26 @@ def ml_pipeline():
     scale = False
     results = feature_engineering(dataset, scale=scale)
     if scale:
-        dataset, ohe_encoder, scaler = results[0], results[1], results[2]
+        dataset, ohe_encoder, categorical_cols, scaler = (
+            results[0],
+            results[1],
+            results[2],
+            results[3],
+        )
     else:
         scaler = None
-        dataset, ohe_encoder = results[0], results[1]
+        dataset, ohe_encoder, categorical_cols = results[0], results[1], results[2]
 
     target = "Survived"
     y = dataset[target]
     X = dataset.drop([target], axis=1)
 
-    best_estimator, best_parameters, best_score = train_optimize(X, y)
+    best_estimator, best_params, best_score = train_optimize(X, y)
 
-    print("Best Parameters:", best_parameters)
+    print("Best Parameters:", best_params)
     print("Best Score:", best_score)
+
+    features_combinations = get_features_combinations(X, categorical_cols)
 
     return best_estimator, age_median, fare_median, ohe_encoder, scaler
 
