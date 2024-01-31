@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 
-from model_training import train_optimize
+from model_training import train_optimize  # noqa: F401
 
 
 def get_dataset(data="train"):
