@@ -119,10 +119,8 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
             df[["Age", "SibSp", "Parch", "norm_fare"]]
         )
 
-        return processed_df, ohe_encoder, scaler
 
     else:
-        return processed_df, ohe_encoder
 
 
 def powerset(iterable, include_empty=True):
@@ -136,10 +134,42 @@ def powerset(iterable, include_empty=True):
     return list(chain.from_iterable(combinations(s, r) for r in range(n, len(s) + 1)))
 
 
-def get_features_combinations(df):
-    combinations = powerset(df.columns, include_empty=True)
+def create_feature_groups(df, categorical_cols):
+    feature_groups = []
+    for cat_col in categorical_cols:
+        # Find all OHE columns for this categorical column
+        ohe_features = [col for col in df.columns if col.startswith(cat_col + "_")]
+        if ohe_features:
+            # Group all OHE columns together
+            feature_groups.append(ohe_features)
+        else:
+            # If no OHE columns, just include the original column
+            feature_groups.append([cat_col])
 
-    return combinations
+    # Add non-categorical columns as individual groups
+    non_cat_cols = df.select_dtypes(exclude=["object"]).columns
+    for col in non_cat_cols:
+        if col not in sum(
+            feature_groups, []
+        ):  # Avoid duplicating columns that are already grouped
+            feature_groups.append([col])
+
+    return feature_groups
+
+
+def grouped_powerset(feature_groups, include_empty=True):
+    if include_empty:
+        n = 0
+    else:
+        n = 1
+
+    return list(
+        chain.from_iterable(
+            combinations(feature_groups, r) for r in range(n, len(feature_groups) + 1)
+        )
+    )
+
+
 
 
 def ml_pipeline():
@@ -163,10 +193,10 @@ def ml_pipeline():
     y = dataset[target]
     X = dataset.drop([target], axis=1)
 
-    best_estimator, best_parameters, best_score = train_optimize(X, y)
+    # best_estimator, best_parameters, best_score = train_optimize(X, y)
 
-    print("Best Parameters:", best_parameters)
-    print("Best Score:", best_score)
+    # print("Best Parameters:", best_parameters)
+    # print("Best Score:", best_score)
 
     features_combinations = get_features_combinations(X)
 
