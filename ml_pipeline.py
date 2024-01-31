@@ -125,17 +125,6 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
         return processed_df, ohe_encoder, categorical_cols
 
 
-def powerset(iterable, include_empty=True):
-    s = list(iterable)
-
-    if include_empty:
-        n = 0
-    else:
-        n = 1
-
-    return list(chain.from_iterable(combinations(s, r) for r in range(n, len(s) + 1)))
-
-
 def create_feature_groups(df, categorical_cols):
     feature_groups = []
     for cat_col in categorical_cols:
