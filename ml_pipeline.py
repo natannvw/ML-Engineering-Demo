@@ -202,10 +202,10 @@ def ml_pipeline():
     y = dataset[target]
     X = dataset.drop([target], axis=1)
 
-    # best_estimator, best_parameters, best_score = train_optimize(X, y)
+    best_estimator, best_params, best_score = train_optimize(X, y)
 
-    # print("Best Parameters:", best_parameters)
-    # print("Best Score:", best_score)
+    print("Best Parameters:", best_params)
+    print("Best Score:", best_score)
 
     features_combinations = get_features_combinations(X, categorical_cols)
 
