@@ -86,6 +86,7 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
     categorical_cols = df[columns_to_encode].select_dtypes(include=["object"]).columns
     numeric_cols = df[columns_to_encode].select_dtypes(exclude=["object"]).columns
 
+    # Avoid data leakage by fitting the encoder on the training data only
     if ohe_encoder is None:
         ohe_encoder = OneHotEncoder(
             handle_unknown="ignore"
@@ -108,6 +109,7 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
 
     # Scale data
     if scale:
+        # Avoid data leakage by fitting the scaler on the training data only
         if scaler is None:
             from sklearn.preprocessing import StandardScaler
 
