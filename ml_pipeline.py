@@ -137,7 +137,9 @@ def powerset(iterable, include_empty=True):
 
 
 def get_features_combinations(df):
-    combinations = powerset(variable_features, include_empty=True)
+    combinations = powerset(df.columns, include_empty=True)
+
+    return combinations
 
 
 def ml_pipeline():
@@ -163,9 +165,10 @@ def ml_pipeline():
 
     best_estimator, best_parameters, best_score = train_optimize(X, y)
 
-    features_combinations = get_features_combinations(dataset)
     print("Best Parameters:", best_parameters)
     print("Best Score:", best_score)
+
+    features_combinations = get_features_combinations(X)
 
     return best_estimator, age_median, fare_median, ohe_encoder, scaler
 
