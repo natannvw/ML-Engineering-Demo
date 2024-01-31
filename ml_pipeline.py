@@ -170,6 +170,19 @@ def grouped_powerset(feature_groups, include_empty=True):
     )
 
 
+def get_features_combinations(df, categorical_cols):
+    # combinations = powerset(df.columns, include_empty=False)
+    feature_groups = create_feature_groups(df, categorical_cols)
+
+    flattened_feature_groups = [col for sublist in feature_groups for col in sublist]
+    if not set(flattened_feature_groups) == set(df.columns):
+        raise ValueError(
+            "Feature groups do not cover all columns in the dataframe. Please check the feature groups."
+        )
+
+    grouped_combinations = grouped_powerset(feature_groups, include_empty=False)
+
+    return grouped_combinations
 
 
 def ml_pipeline():
@@ -198,7 +211,7 @@ def ml_pipeline():
     # print("Best Parameters:", best_parameters)
     # print("Best Score:", best_score)
 
-    features_combinations = get_features_combinations(X)
+    features_combinations = get_features_combinations(X, categorical_cols)
 
     return best_estimator, age_median, fare_median, ohe_encoder, scaler
 
