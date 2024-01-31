@@ -150,6 +150,10 @@ def ml_pipeline():
     print("Best Parameters:", best_parameters)
     print("Best Score:", best_score)
 
+    return best_estimator, age_median, fare_median, ohe_encoder, scaler
+
+
+def predict_pipeline(best_estimator, age_median, fare_median, ohe_encoder, scaler):
     # Predict on test data
     dataset = get_dataset(data="test")
     passenger_id = dataset.PassengerId
@@ -157,6 +161,11 @@ def ml_pipeline():
     dataset, _, _ = data_cleaning(
         dataset, age_median=age_median, fare_median=fare_median
     )
+
+    if scaler is not None:
+        scale = True
+    else:
+        scale = False
 
     results = feature_engineering(
         dataset, ohe_encoder=ohe_encoder, scale=scale, scaler=scaler
@@ -173,7 +182,11 @@ def ml_pipeline():
 
 
 if __name__ == "__main__":
-    model, y_pred_df = ml_pipeline()
+    best_estimator, age_median, fare_median, ohe_encoder, scaler = ml_pipeline()
+
+    model, y_pred_df = predict_pipeline(
+        best_estimator, age_median, fare_median, ohe_encoder, scaler
+    )
 
     submission_folder = "Submissions"
     os.makedirs(submission_folder, exist_ok=True)
