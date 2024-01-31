@@ -133,7 +133,7 @@ def ml_pipeline():
 
     dataset, age_median, fare_median = data_cleaning(dataset)
 
-    scale = True
+    scale = False
     results = feature_engineering(dataset, scale=scale)
     if scale:
         dataset, ohe_encoder, scaler = results[0], results[1], results[2]
