@@ -1,5 +1,6 @@
 import datetime
 import os
+from itertools import chain, combinations
 
 import numpy as np
 import pandas as pd
@@ -124,6 +125,21 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
         return processed_df, ohe_encoder
 
 
+def powerset(iterable, include_empty=True):
+    s = list(iterable)
+
+    if include_empty:
+        n = 0
+    else:
+        n = 1
+
+    return list(chain.from_iterable(combinations(s, r) for r in range(n, len(s) + 1)))
+
+
+def get_features_combinations(df):
+    combinations = powerset(variable_features, include_empty=True)
+
+
 def ml_pipeline():
     # Train model
     dataset = get_dataset(data="train")
@@ -147,6 +163,7 @@ def ml_pipeline():
 
     best_estimator, best_parameters, best_score = train_optimize(X, y)
 
+    features_combinations = get_features_combinations(dataset)
     print("Best Parameters:", best_parameters)
     print("Best Score:", best_score)
 
