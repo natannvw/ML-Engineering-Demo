@@ -1,3 +1,4 @@
+import subprocess
 from typing import Optional, Tuple, Union  # noqa: F401
 
 import mlflow
@@ -33,3 +34,23 @@ def set_mlflow(
     experiment_id = set_experiment_client(experiment_name, mlflow_client)
 
     return experiment_id, mlflow_client
+
+
+def start_mlflow_server(host="127.0.0.1", port=8080):
+    """
+    Start the MLflow tracking server on the local host with specified port and return the tracking URI.
+
+    Parameters:
+    - host (str): The host address to bind the server. Use '127.0.0.1' for localhost.
+    - port (int): The port on which the MLflow server will listen.
+
+    Returns:
+    - str: The MLflow tracking URI.
+    """
+    command = ["mlflow", "server", "--host", host, "--port", str(port)]
+    # Start the server in a subprocess
+    subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    mlflow_tracking_uri = f"http://{host}:{port}"
+
+    return mlflow_tracking_uri

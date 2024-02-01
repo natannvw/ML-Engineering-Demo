@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import OneHotEncoder
 
+import mlflow_utils
 from model_training import train_optimize  # noqa: F401
 
 
@@ -204,12 +205,25 @@ def ml_pipeline():
     y = dataset[target]
     X = dataset.drop([target], axis=1)
 
-    best_estimator, best_params, best_score = train_optimize(X, y)
+    # best_estimator, best_params, best_score = train_optimize(X, y)
 
-    print("Best Parameters:", best_params)
-    print("Best Score:", best_score)
+    # print("Best Parameters:", best_params)
+    # print("Best Score:", best_score)
 
     features_combinations = get_features_combinations(X, categorical_cols)
+
+    experiment_name = "Titanic"
+    mlflow_tracking_uri = "http://127.0.0.1:5000"
+
+    mlflow_tracking_uri = mlflow_utils.start_mlflow_server()
+
+    print(
+        f"MLflow server is running at: {mlflow_tracking_uri}, Experiment: {experiment_name}"
+    )
+
+    experiment_id, mlflow_client = mlflow_utils.set_mlflow(
+        experiment_name, mlflow_tracking_uri=mlflow_tracking_uri
+    )
 
     return best_estimator, age_median, fare_median, ohe_encoder, scaler
 
