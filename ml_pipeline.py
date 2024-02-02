@@ -1,11 +1,13 @@
 import datetime
 import os
+import warnings
 from itertools import chain, combinations
 from typing import Literal, Optional, Tuple, Union
 
 import mlflow
 import numpy as np
 import pandas as pd
+import ray
 from mlflow.entities import RunStatus
 from mlflow.tracking import MlflowClient
 from sklearn.ensemble import RandomForestClassifier
@@ -13,6 +15,9 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 import mlflow_utils
 from model_training import train_optimize  # noqa: F401
+
+# check if the issue was fixed in the latest version of the library: https://github.com/mlflow/mlflow/issues/10709
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def get_dataset(data: Literal["train", "test"] = "train") -> pd.DataFrame:
@@ -227,6 +232,7 @@ def features_selection(
     return features
 
 
+@ray.remote
 def train(
     features_combination: tuple[list[str]],
     target: str,
@@ -250,7 +256,7 @@ def train(
     try:
         mlflow_client.log_param(run_id, "features", features_combination)
 
-        with mlflow.start_run(run_id=run.info.run_id):
+        with mlflow.start_run(run_id=run_id):
             mlflow.sklearn.autolog()
 
             X = dataset[features_selection(features_combination)]
@@ -260,10 +266,14 @@ def train(
 
             model.fit(X, y)  # MLflow triggers logging automatically upon model fitting
 
+        mlflow_client.set_terminated(
+            run_id, status=RunStatus.to_string(RunStatus.FINISHED)
+        )
+
     except Exception as e:
         print(f"Error occurred: {e}")
         mlflow_client.set_terminated(
-            run.info.run_id, status=RunStatus.to_string(RunStatus.FAILED)
+            run_id, status=RunStatus.to_string(RunStatus.FAILED)
         )
         raise  # Re-raise the exception to mark run as failed
 
@@ -271,7 +281,7 @@ def train(
         # If the run is interrupted (e.g., by pressing Ctrl+C), log it as KILLED
         print("Run interrupted by user.")
         mlflow_client.set_terminated(
-            run.info.run_id, status=RunStatus.to_string(RunStatus.KILLED)
+            run_id, status=RunStatus.to_string(RunStatus.KILLED)
         )
         raise  # Re-raise the exception to mark run as failed
 
@@ -331,17 +341,25 @@ def ml_pipeline() -> (
     )
 
     # TODO remove trim (testing purposes)
-    features_combinations = features_combinations[:5]
+    features_combinations = features_combinations[:10]
 
-    for combination in features_combinations:
-        train(
+    ray.init()
+
+    result_ids = [
+        train.remote(
             combination,
-            target,
-            dataset,
-            best_params,
-            experiment_id,
-            mlflow_client,
+            target=target,
+            dataset=dataset,
+            params=best_params,
+            experiment_id=experiment_id,
+            mlflow_client=mlflow_client,
         )
+        for combination in features_combinations
+    ]
+
+    results = ray.get(result_ids)
+
+    ray.shutdown()
 
     return best_estimator, age_median, fare_median, ohe_encoder, scaler
 
