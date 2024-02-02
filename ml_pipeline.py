@@ -198,15 +198,15 @@ def get_features_combinations(
 
 
 def validation(
-    features_combinations: list[tuple[list[str]]],
+    features_combination: tuple[list[str]],
     target: str,
     dataset: pd.DataFrame,
     params: dict,
     experiment_id: int,
     mlflow_client: MlflowClient,
 ) -> None:
-    if not isinstance(features_combinations, list):
-        raise ValueError("combination must be a list")
+    if not isinstance(features_combination, tuple):
+        raise ValueError("combination must be a tuple")
     if not isinstance(target, str):
         raise ValueError("target must be a string")
     if not isinstance(dataset, pd.DataFrame):
@@ -217,6 +217,14 @@ def validation(
         raise ValueError("experiment_id must be an integer")
     if not isinstance(mlflow_client, MlflowClient):
         raise ValueError("mlflow_client must be an MlflowClient object")
+
+
+def features_selection(
+    features_combination: tuple[list[str]],
+) -> list[str]:
+    features = [feature for sublist in features_combination for feature in sublist]
+
+    return features
 
 
 def train(
@@ -245,7 +253,7 @@ def train(
         with mlflow.start_run(run_id=run.info.run_id):
             mlflow.sklearn.autolog()
 
-            X = dataset[list(features_combination)]
+            X = dataset[features_selection(features_combination)]
             y = dataset[target]
 
             model = RandomForestClassifier(**params)
