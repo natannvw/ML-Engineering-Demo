@@ -232,6 +232,28 @@ def features_selection(
     return features
 
 
+def clean_finished_combinations(
+    combinations: list[dict], experiment_name: str
+) -> list[tuple[list[str]]]:
+    finished_configs = mlflow_utils.get_finished_configs(experiment_name)
+
+    skipped_configs = [
+        combination for combination in combinations if combination in finished_configs
+    ]
+
+    if len(skipped_configs) > 0:
+        print(f"Skipped {len(skipped_configs)} configurations")
+
+    # Getting the cleaned combinations that are not in finished_configs
+    cleaned_combinations = [
+        combination
+        for combination in combinations
+        if combination not in finished_configs
+    ]
+
+    return cleaned_combinations
+
+
 @ray.remote
 def train(
     features_combination: tuple[list[str]],
@@ -342,6 +364,10 @@ def ml_pipeline() -> (
 
     # TODO remove trim (testing purposes)
     features_combinations = features_combinations[:10]
+
+    features_combinations = clean_finished_combinations(
+        features_combinations, experiment_name
+    )
 
     ray.init()
 
