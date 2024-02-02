@@ -1,3 +1,4 @@
+import ast
 import datetime
 import os
 import warnings
@@ -8,7 +9,8 @@ import mlflow
 import numpy as np
 import pandas as pd
 import ray
-from mlflow.entities import RunStatus
+import sklearn
+from mlflow.entities import Run, RunStatus
 from mlflow.tracking import MlflowClient
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -328,6 +330,8 @@ def get_best_run(
     best_run = runs_list[0] if runs_list else None
 
     return best_run
+
+
 def get_features_combination_from_run(run: Run) -> dict[str, tuple[str, ...]]:
     # Retrieve the 'features' parameter from the run
     best_features = run.data.params.get("features")
@@ -336,6 +340,58 @@ def get_features_combination_from_run(run: Run) -> dict[str, tuple[str, ...]]:
     best_features = ast.literal_eval(best_features)
 
     return best_features
+
+
+def register_best_model(
+    target: str,
+    dataset: pd.DataFrame,
+    experiment_id: int,
+    model_name: str,
+    mlflow_client: MlflowClient,
+    mlflow_tracking_uri: str = None,
+    filter_string: str = None,
+) -> RandomForestClassifier:
+    best_run = get_best_run(experiment_id, mlflow_client, filter_string=filter_string)
+
+    features_combination = get_features_combination_from_run(run=best_run)
+
+    run = mlflow_client.create_run(experiment_id)
+    run_id = run.info.run_id
+
+    mlflow_client.log_param(run_id, "features", features_combination)
+
+    # Train with the best features combination and register the model
+    with mlflow.start_run(run_id=run_id):
+        mlflow.sklearn.autolog()
+
+        X = dataset[features_selection(features_combination)]
+        y = dataset[target]
+
+        best_estimator, best_params, best_score = train_optimize(X, y)
+
+        mlflow_client.set_terminated(
+            run_id, status=RunStatus.to_string(RunStatus.FINISHED)
+        )
+
+        # Log the model
+        mlflow_client.set_tag(
+            run.info.run_id, "sklearn.__version__", str(sklearn.__version__)
+        )
+
+        mlflow.sklearn.log_model(
+            sk_model=best_estimator,
+            artifact_path="model",
+            registered_model_name=model_name,
+        )
+
+    # Load model:
+    model = mlflow_utils.load_mlflow_model(
+        model_name=model_name, mlflow_tracking_uri=mlflow_tracking_uri
+    )
+
+    return model
+
+
 def ml_pipeline() -> (
     Tuple[RandomForestClassifier, float, float, OneHotEncoder, StandardScaler]
 ):
