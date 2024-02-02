@@ -1,9 +1,14 @@
 import datetime
 import os
 from itertools import chain, combinations
+from typing import Optional, Union
 
+import mlflow
 import numpy as np
 import pandas as pd
+from mlflow.entities import RunStatus
+from mlflow.tracking import MlflowClient
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import OneHotEncoder
 
 import mlflow_utils
@@ -179,6 +184,81 @@ def get_features_combinations(df, categorical_cols):
     return grouped_combinations
 
 
+def validation(
+    features_combinations: list[tuple[list[str]]],
+    target: str,
+    dataset: pd.DataFrame,
+    params: dict,
+    experiment_id: int,
+    mlflow_client: MlflowClient,
+):
+    if not isinstance(features_combinations, list):
+        raise ValueError("combination must be a list")
+    if not isinstance(target, str):
+        raise ValueError("target must be a string")
+    if not isinstance(dataset, pd.DataFrame):
+        raise ValueError("dataset must be a pandas DataFrame")
+    if not isinstance(params, dict):
+        raise ValueError("params must be a dictionary")
+    if not isinstance(experiment_id, Optional[Union[int, str]]):
+        raise ValueError("experiment_id must be an integer")
+    if not isinstance(mlflow_client, MlflowClient):
+        raise ValueError("mlflow_client must be an MlflowClient object")
+
+
+def train(
+    features_combination: tuple[list[str]],
+    target: str,
+    dataset: pd.DataFrame,
+    params: dict,
+    experiment_id: int,
+    mlflow_client: MlflowClient,
+):
+    validation(
+        features_combination,
+        target,
+        dataset,
+        params,
+        experiment_id,
+        mlflow_client,
+    )
+
+    run = mlflow_client.create_run(experiment_id)
+    run_id = run.info.run_id
+
+    try:
+        mlflow_client.log_param(run_id, "features", features_combination)
+
+        with mlflow.start_run(run_id=run.info.run_id):
+            mlflow.sklearn.autolog()
+
+            X = dataset[list(features_combination)]
+            y = dataset[target]
+
+            model = RandomForestClassifier(**params)
+
+            model.fit(X, y)  # MLflow triggers logging automatically upon model fitting
+
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        mlflow_client.set_terminated(
+            run.info.run_id, status=RunStatus.to_string(RunStatus.FAILED)
+        )
+        raise  # Re-raise the exception to mark run as failed
+
+    except KeyboardInterrupt:
+        # If the run is interrupted (e.g., by pressing Ctrl+C), log it as KILLED
+        print("Run interrupted by user.")
+        mlflow_client.set_terminated(
+            run.info.run_id, status=RunStatus.to_string(RunStatus.KILLED)
+        )
+        raise  # Re-raise the exception to mark run as failed
+
+    else:
+        # If everything goes well, the run will be logged as FINISHED
+        pass
+
+
 def ml_pipeline():
     # Train model
     dataset = get_dataset(data="train")
@@ -205,7 +285,16 @@ def ml_pipeline():
     y = dataset[target]
     X = dataset.drop([target], axis=1)
 
-    # best_estimator, best_params, best_score = train_optimize(X, y)
+    # best_estimator, best_params, best_score = train_optimize(X, y)   # TODO
+    best_params = {
+        "bootstrap": True,
+        "criterion": "entropy",
+        "max_depth": 15,
+        "min_samples_leaf": 2,
+        "min_samples_split": 15,
+        "n_estimators": 100,
+        "random_state": 42,
+    }
 
     # print("Best Parameters:", best_params)
     # print("Best Score:", best_score)
@@ -213,16 +302,17 @@ def ml_pipeline():
     features_combinations = get_features_combinations(X, categorical_cols)
 
     experiment_name = "Titanic"
-    mlflow_tracking_uri = "http://127.0.0.1:5000"
-
-    mlflow_tracking_uri = mlflow_utils.start_mlflow_server()
-
-    print(
-        f"MLflow server is running at: {mlflow_tracking_uri}, Experiment: {experiment_name}"
-    )
 
     experiment_id, mlflow_client = mlflow_utils.set_mlflow(
-        experiment_name, mlflow_tracking_uri=mlflow_tracking_uri
+        experiment_name, mlflow_tracking_uri=mlflow_utils.start_mlflow_server()
+    )
+
+    train(
+        features_combinations[0],  # TODO remove trim
+        dataset=dataset,
+        params=best_params,
+        experiment_id=experiment_id,
+        mlflow_client=mlflow_client,
     )
 
     return best_estimator, age_median, fare_median, ohe_encoder, scaler
