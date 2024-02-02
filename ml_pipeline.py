@@ -328,6 +328,14 @@ def get_best_run(
     best_run = runs_list[0] if runs_list else None
 
     return best_run
+def get_features_combination_from_run(run: Run) -> dict[str, tuple[str, ...]]:
+    # Retrieve the 'features' parameter from the run
+    best_features = run.data.params.get("features")
+
+    # desirialize the configs
+    best_features = ast.literal_eval(best_features)
+
+    return best_features
 def ml_pipeline() -> (
     Tuple[RandomForestClassifier, float, float, OneHotEncoder, StandardScaler]
 ):
