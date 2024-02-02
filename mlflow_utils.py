@@ -34,7 +34,7 @@ def set_mlflow(
     experiment_id = set_experiment_client(experiment_name, mlflow_client)
 
     print(
-        f"MLflow server is running at: {mlflow_tracking_uri}, Experiment: {experiment_name}"
+        f"\nMLflow server is running at: {mlflow_tracking_uri}, Experiment: {experiment_name}\n"
     )
 
     return experiment_id, mlflow_client
