@@ -322,13 +322,18 @@ def ml_pipeline() -> (
         experiment_name, mlflow_tracking_uri=mlflow_utils.start_mlflow_server()
     )
 
-    train(
-        features_combinations[0],  # TODO remove trim
-        dataset=dataset,
-        params=best_params,
-        experiment_id=experiment_id,
-        mlflow_client=mlflow_client,
-    )
+    # TODO remove trim (testing purposes)
+    features_combinations = features_combinations[:5]
+
+    for combination in features_combinations:
+        train(
+            combination,
+            target,
+            dataset,
+            best_params,
+            experiment_id,
+            mlflow_client,
+        )
 
     return best_estimator, age_median, fare_median, ohe_encoder, scaler
 
