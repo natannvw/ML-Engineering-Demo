@@ -1,3 +1,4 @@
+import ast
 import subprocess
 from typing import Optional, Tuple, Union  # noqa: F401
 
@@ -58,3 +59,22 @@ def start_mlflow_server(host="127.0.0.1", port=8080):
     mlflow_tracking_uri = f"http://{host}:{port}"
 
     return mlflow_tracking_uri
+
+
+def get_finished_configs(experiment_name: str) -> list[tuple]:
+    # get finished runs:
+    finished_runs = mlflow.search_runs(
+        experiment_names=[experiment_name],
+        filter_string="attributes.status = 'FINISHED'",
+        output_format="pandas",
+    )
+
+    if finished_runs.empty:
+        return []
+
+    finished_configs = finished_runs["params.features"].unique().tolist()
+
+    # desirialize the configs
+    finished_configs = [ast.literal_eval(config) for config in finished_configs]
+
+    return finished_configs
