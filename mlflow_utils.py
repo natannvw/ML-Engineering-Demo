@@ -5,6 +5,7 @@ from typing import Optional, Tuple, Union  # noqa: F401
 import mlflow
 from mlflow.entities.run_info import RunInfo  # noqa: F401
 from mlflow.tracking import MlflowClient
+from sklearn.ensemble import RandomForestClassifier
 
 
 def set_MlflowClient(
@@ -78,3 +79,25 @@ def get_finished_configs(experiment_name: str) -> list[tuple]:
     finished_configs = [ast.literal_eval(config) for config in finished_configs]
 
     return finished_configs
+
+
+def load_mlflow_model(
+    mlflow_tracking_uri,
+    model_name,
+    model_version=None,
+) -> RandomForestClassifier:
+    # Save the current tracking URI to get it back later to the current one
+    current_uri = mlflow.get_tracking_uri()
+
+    # Set the new tracking URI
+    mlflow.set_tracking_uri(mlflow_tracking_uri)
+
+    try:
+        model_uri = f"models:/{model_name}/{model_version}"
+        model = mlflow.sklearn.load_model(model_uri=model_uri)
+
+    finally:
+        # Restore the original tracking URI
+        mlflow.set_tracking_uri(current_uri)
+
+    return model
