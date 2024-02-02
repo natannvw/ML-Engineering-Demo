@@ -1,7 +1,7 @@
 import datetime
 import os
 from itertools import chain, combinations
-from typing import Optional, Union
+from typing import Literal, Optional, Tuple, Union
 
 import mlflow
 import numpy as np
@@ -9,13 +9,13 @@ import pandas as pd
 from mlflow.entities import RunStatus
 from mlflow.tracking import MlflowClient
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 import mlflow_utils
 from model_training import train_optimize  # noqa: F401
 
 
-def get_dataset(data="train"):
+def get_dataset(data: Literal["train", "test"] = "train") -> pd.DataFrame:
     data_folder = "Data"
 
     if data == "train":
@@ -30,7 +30,11 @@ def get_dataset(data="train"):
     return df
 
 
-def data_cleaning(df, age_median=None, fare_median=None):
+def data_cleaning(
+    df: pd.DataFrame,
+    age_median: Optional[float] = None,
+    fare_median: Optional[float] = None,
+) -> Tuple[pd.DataFrame, float, float]:
     # impute nulls for continuous data
     if age_median is None:
         age_median = df.Age.median()
@@ -46,7 +50,12 @@ def data_cleaning(df, age_median=None, fare_median=None):
     return df, age_median, fare_median
 
 
-def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
+def feature_engineering(
+    df: pd.DataFrame,
+    ohe_encoder: OneHotEncoder = None,
+    scale: bool = False,
+    scaler: StandardScaler = None,
+) -> Tuple[pd.DataFrame, OneHotEncoder, list[str], StandardScaler]:
     df["cabin_multiple"] = df.Cabin.apply(
         lambda x: 0 if pd.isna(x) else len(x.split(" "))
     )
@@ -117,8 +126,6 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
     if scale:
         # Avoid data leakage by fitting the scaler on the training data only
         if scaler is None:
-            from sklearn.preprocessing import StandardScaler
-
             scaler = StandardScaler()
 
             scaler.fit(df[["Age", "SibSp", "Parch", "norm_fare"]])
@@ -133,7 +140,9 @@ def feature_engineering(df, ohe_encoder=None, scale=False, scaler=None):
         return processed_df, ohe_encoder, categorical_cols
 
 
-def create_feature_groups(df, categorical_cols):
+def create_feature_groups(
+    df: pd.DataFrame, categorical_cols: list[str]
+) -> list[list[str]]:
     feature_groups = []
     for cat_col in categorical_cols:
         # Find all OHE columns for this categorical column
@@ -156,7 +165,9 @@ def create_feature_groups(df, categorical_cols):
     return feature_groups
 
 
-def grouped_powerset(feature_groups, include_empty=True):
+def grouped_powerset(
+    feature_groups: list[list[str]], include_empty: bool = True
+) -> list[tuple[list[str]]]:
     if include_empty:
         n = 0
     else:
@@ -169,7 +180,9 @@ def grouped_powerset(feature_groups, include_empty=True):
     )
 
 
-def get_features_combinations(df, categorical_cols):
+def get_features_combinations(
+    df: pd.DataFrame, categorical_cols: list[str]
+) -> list[tuple[list[str]]]:
     # combinations = powerset(df.columns, include_empty=False)
     feature_groups = create_feature_groups(df, categorical_cols)
 
@@ -191,7 +204,7 @@ def validation(
     params: dict,
     experiment_id: int,
     mlflow_client: MlflowClient,
-):
+) -> None:
     if not isinstance(features_combinations, list):
         raise ValueError("combination must be a list")
     if not isinstance(target, str):
@@ -213,7 +226,7 @@ def train(
     params: dict,
     experiment_id: int,
     mlflow_client: MlflowClient,
-):
+) -> None:
     validation(
         features_combination,
         target,
@@ -259,7 +272,9 @@ def train(
         pass
 
 
-def ml_pipeline():
+def ml_pipeline() -> (
+    Tuple[RandomForestClassifier, float, float, OneHotEncoder, StandardScaler]
+):
     # Train model
     dataset = get_dataset(data="train")
 
@@ -318,7 +333,13 @@ def ml_pipeline():
     return best_estimator, age_median, fare_median, ohe_encoder, scaler
 
 
-def predict_pipeline(best_estimator, age_median, fare_median, ohe_encoder, scaler):
+def predict_pipeline(
+    best_estimator: RandomForestClassifier,
+    age_median: Optional[float],
+    fare_median: Optional[float],
+    ohe_encoder: OneHotEncoder,
+    scaler: StandardScaler,
+) -> (RandomForestClassifier, pd.DataFrame):
     # Predict on test data
     dataset = get_dataset(data="test")
     passenger_id = dataset.PassengerId
