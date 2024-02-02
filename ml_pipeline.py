@@ -312,6 +312,22 @@ def train(
         pass
 
 
+def get_best_run(
+    experiment_id: int,
+    mlflow_client: MlflowClient,
+    filter_string: str = None,
+) -> Run:
+    runs_list = mlflow_client.search_runs(
+        filter_string=filter_string,
+        experiment_ids=[experiment_id],
+        order_by=["metrics.training_accuracy_score DESC"],
+        max_results=1,
+    )
+
+    # Assuming runs_list sorted by 'training_accuracy_score' in descending order
+    best_run = runs_list[0] if runs_list else None
+
+    return best_run
 def ml_pipeline() -> (
     Tuple[RandomForestClassifier, float, float, OneHotEncoder, StandardScaler]
 ):
@@ -358,8 +374,10 @@ def ml_pipeline() -> (
 
     experiment_name = "Titanic"
 
+    mlflow_tracking_uri = mlflow_utils.start_mlflow_server()
+
     experiment_id, mlflow_client = mlflow_utils.set_mlflow(
-        experiment_name, mlflow_tracking_uri=mlflow_utils.start_mlflow_server()
+        experiment_name, mlflow_tracking_uri=mlflow_tracking_uri
     )
 
     # TODO remove trim (testing purposes)
@@ -368,6 +386,8 @@ def ml_pipeline() -> (
     features_combinations = clean_finished_combinations(
         features_combinations, experiment_name
     )
+
+    print("Trainings runs...")
 
     ray.init()
 
@@ -387,7 +407,22 @@ def ml_pipeline() -> (
 
     ray.shutdown()
 
-    return best_estimator, age_median, fare_median, ohe_encoder, scaler
+    print("Finished trainings runs")
+
+    # Register Model
+    print("Registering the best model...")
+
+    model = register_best_model(
+        dataset=dataset,
+        experiment_id=experiment_id,
+        model_name=experiment_name,
+        mlflow_client=mlflow_client,
+        mlflow_tracking_uri=mlflow_tracking_uri,
+    )
+
+    print("Finished registering the best model")
+
+    return model, age_median, fare_median, ohe_encoder, scaler
 
 
 def predict_pipeline(
