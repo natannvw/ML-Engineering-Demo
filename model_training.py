@@ -23,12 +23,10 @@ def train_optimize(X_train, y_train):
         "max_depth": [4, 5, 8, 15, None],
         "min_samples_split": [2, 5, 10, 15],
         "min_samples_leaf": [1, 2, 5],
-        "criterion": ["gini", "entropy"],
-        "bootstrap": [True, False],
     }
 
     # Create a RandomForestClassifier
-    rf = RandomForestClassifier(random_state=42)
+    rf = RandomForestClassifier(random_state=42, criterion="entropy")
 
     # Setup GridSearchCV
     grid_search = GridSearchCV(
