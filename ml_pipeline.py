@@ -551,7 +551,8 @@ def predict_pipeline(
     )
     dataset, ohe_encoder = results[0], results[1]
 
-    X = dataset
+    features_combination = best_estimator.feature_names_in_
+    X = dataset[features_combination]
 
     y_pred = best_estimator.predict(X)
 
