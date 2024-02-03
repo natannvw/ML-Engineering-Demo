@@ -573,4 +573,3 @@ if __name__ == "__main__":
     path = os.path.join(submission_folder, filename)
 
     y_pred_df.to_csv(path, index=False)
-    y_pred_df.to_csv(path, index=False)
