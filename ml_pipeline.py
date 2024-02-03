@@ -283,7 +283,7 @@ def train(
 
         with mlflow.start_run(run_id=run_id):
             # log_models=False to avoid logging the model for memory and computation efficiency. The model will be logged later in the register.
-            mlflow.sklearn.autolog(log_models=False)
+            mlflow.sklearn.autolog(log_models=False, silent=True)
 
             X = dataset[features_selection(features_combination)]
             y = dataset[target]
