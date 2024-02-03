@@ -403,9 +403,12 @@ def register_best_model(
     return model
 
 
-def ml_pipeline() -> (
-    Tuple[RandomForestClassifier, float, float, OneHotEncoder, StandardScaler]
-):
+def ml_pipeline(
+    target: str = "Survived",
+    experiment_name: str = "Titanic",
+    scale: bool = False,
+    retrive_registered_model: bool = False,
+) -> Tuple[RandomForestClassifier, float, float, OneHotEncoder, StandardScaler]:
     # Train model
     dataset = get_dataset(data="train")
 
@@ -414,7 +417,6 @@ def ml_pipeline() -> (
 
     dataset, age_median, fare_median = data_cleaning(dataset)
 
-    scale = False
     results = feature_engineering(dataset, scale=scale)
     if scale:
         dataset, ohe_encoder, categorical_cols, scaler = (
@@ -430,7 +432,6 @@ def ml_pipeline() -> (
     int_cols = dataset.select_dtypes(include="int").columns.tolist()
     dataset[int_cols] = dataset[int_cols].astype("float64")
 
-    target = "Survived"
     y = dataset[target]
     X = dataset.drop([target], axis=1)
 
@@ -453,8 +454,6 @@ def ml_pipeline() -> (
 
     print("Creating the features combinations...")
     features_combinations = get_features_combinations(X, categorical_cols)
-
-    experiment_name = "Titanic"
 
     print("Starting MLflow server...")
     mlflow_tracking_uri = mlflow_utils.start_mlflow_server()
@@ -562,7 +561,11 @@ def predict_pipeline(
 
 
 if __name__ == "__main__":
-    model, age_median, fare_median, ohe_encoder, scaler = ml_pipeline()
+    model, age_median, fare_median, ohe_encoder, scaler = ml_pipeline(
+        target="Survived",
+        experiment_name="Titanic",
+        retrive_registered_model=True,  # TODO False (remove line)
+    )
 
     y_pred_df = predict_pipeline(model, age_median, fare_median, ohe_encoder, scaler)
 
