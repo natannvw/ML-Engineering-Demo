@@ -281,7 +281,8 @@ def train(
         mlflow_client.log_param(run_id, "features", features_combination)
 
         with mlflow.start_run(run_id=run_id):
-            mlflow.sklearn.autolog()
+            # log_models=False to avoid logging the model for memory and computation efficiency. The model will be logged later in the register.
+            mlflow.sklearn.autolog(log_models=False)
 
             X = dataset[features_selection(features_combination)]
             y = dataset[target]
@@ -367,6 +368,7 @@ def register_best_model(
         X = dataset[features_selection(features_combination)]
         y = dataset[target]
 
+        print("Optimizing the model with the best features combination...")
         best_estimator, best_params, best_score = train_optimize(X, y)
 
         mlflow_client.set_terminated(
@@ -420,6 +422,9 @@ def ml_pipeline() -> (
     y = dataset[target]
     X = dataset.drop([target], axis=1)
 
+    print(
+        "Get the best parameters for first optimization on the entire dataset to avoid optimizing on the mlflow runs (second optimization will be done on the registered model)"
+    )
     # best_estimator, best_params, best_score = train_optimize(X, y)   # TODO
     best_params = {
         "bootstrap": True,
@@ -445,13 +450,13 @@ def ml_pipeline() -> (
     )
 
     # TODO remove trim (testing purposes)
-    features_combinations = features_combinations[:10]
+    features_combinations = features_combinations[4:10]
 
     features_combinations = clean_finished_combinations(
         features_combinations, experiment_name
     )
 
-    print("Trainings runs...")
+    print("Trainings runs on MLflow experiment...")
 
     ray.init()
 
@@ -477,6 +482,7 @@ def ml_pipeline() -> (
     print("Registering the best model...")
 
     model = register_best_model(
+        target=target,
         dataset=dataset,
         experiment_id=experiment_id,
         model_name=experiment_name,
@@ -495,7 +501,7 @@ def predict_pipeline(
     fare_median: Optional[float],
     ohe_encoder: OneHotEncoder,
     scaler: StandardScaler,
-) -> (RandomForestClassifier, pd.DataFrame):
+) -> pd.DataFrame:
     # Predict on test data
     dataset = get_dataset(data="test")
     passenger_id = dataset.PassengerId
@@ -520,15 +526,13 @@ def predict_pipeline(
 
     output = pd.DataFrame({"PassengerId": passenger_id, "Survived": y_pred})
 
-    return best_estimator, output
+    return output
 
 
 if __name__ == "__main__":
-    best_estimator, age_median, fare_median, ohe_encoder, scaler = ml_pipeline()
+    model, age_median, fare_median, ohe_encoder, scaler = ml_pipeline()
 
-    model, y_pred_df = predict_pipeline(
-        best_estimator, age_median, fare_median, ohe_encoder, scaler
-    )
+    y_pred_df = predict_pipeline(model, age_median, fare_median, ohe_encoder, scaler)
 
     submission_folder = "Submissions"
     os.makedirs(submission_folder, exist_ok=True)
