@@ -419,6 +419,9 @@ def ml_pipeline() -> (
         scaler = None
         dataset, ohe_encoder, categorical_cols = results[0], results[1], results[2]
 
+    int_cols = dataset.select_dtypes(include="int").columns.tolist()
+    dataset[int_cols] = dataset[int_cols].astype("float64")
+
     target = "Survived"
     y = dataset[target]
     X = dataset.drop([target], axis=1)
