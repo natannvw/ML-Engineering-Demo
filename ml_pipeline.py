@@ -438,15 +438,6 @@ def ml_pipeline(
     print(
         "Get the best parameters for first optimization on the entire dataset to avoid optimizing on the mlflow runs (second optimization will be done on the registered model)"
     )
-    # best_params = {
-    #     "bootstrap": True,
-    #     "criterion": "entropy",
-    #     "max_depth": 15,
-    #     "min_samples_leaf": 2,
-    #     "min_samples_split": 15,
-    #     "n_estimators": 100,
-    #     "random_state": 42,
-    # }
 
     if retrive_registered_model:
         model = mlflow_utils.load_mlflow_model(
@@ -455,7 +446,15 @@ def ml_pipeline(
         )
         return model, age_median, fare_median, ohe_encoder, scaler
 
-    # best_estimator, best_params, best_score = train_optimize(X, y)  # TODO
+    best_estimator, best_params, best_score = train_optimize(X, y)  # TODO
+    # best_params = {
+    #     "criterion": "entropy",
+    #     "max_depth": 15,
+    #     "min_samples_leaf": 2,
+    #     "min_samples_split": 15,
+    #     "n_estimators": 100,
+    #     "random_state": 42,
+    # }
 
     # print("Best Parameters:", best_params)
     # print("Best Score:", best_score)
