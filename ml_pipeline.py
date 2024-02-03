@@ -14,6 +14,7 @@ from mlflow.entities import Run, RunStatus
 from mlflow.tracking import MlflowClient
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from tqdm.auto import tqdm
 
 import mlflow_utils
 from model_training import train_optimize  # noqa: F401
@@ -450,7 +451,7 @@ def ml_pipeline() -> (
     )
 
     # TODO remove trim (testing purposes)
-    features_combinations = features_combinations[4:10]
+    # features_combinations = features_combinations[:10]
 
     features_combinations = clean_finished_combinations(
         features_combinations, experiment_name
@@ -458,9 +459,7 @@ def ml_pipeline() -> (
 
     print("Trainings runs on MLflow experiment...")
 
-    ray.init()
-
-    result_ids = [
+    tasks = [
         train.remote(
             combination,
             target=target,
@@ -472,8 +471,27 @@ def ml_pipeline() -> (
         for combination in features_combinations
     ]
 
-    results = ray.get(result_ids)
+    # Initialize a tqdm progress bar
+    pbar = tqdm(total=len(tasks))
 
+    # List to store the results
+    results = []
+
+    # Continue until all tasks are done
+    while tasks:
+        # Wait for any one task to finish
+        finished, tasks = ray.wait(tasks)
+
+        # Update the results list and the progress bar for each finished task
+        for result_id in finished:
+            result = ray.get(result_id)
+            results.append(result)
+            pbar.update(1)
+
+    # Close the progress bar
+    pbar.close()
+
+    # Shutdown Ray
     ray.shutdown()
 
     print("Finished trainings runs")
