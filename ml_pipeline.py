@@ -451,10 +451,12 @@ def ml_pipeline() -> (
     # print("Best Parameters:", best_params)
     # print("Best Score:", best_score)
 
+    print("Creating the features combinations...")
     features_combinations = get_features_combinations(X, categorical_cols)
 
     experiment_name = "Titanic"
 
+    print("Starting MLflow server...")
     mlflow_tracking_uri = mlflow_utils.start_mlflow_server()
 
     experiment_id, mlflow_client = mlflow_utils.set_mlflow(
