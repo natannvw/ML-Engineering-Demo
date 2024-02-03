@@ -13,6 +13,7 @@ import sklearn
 from mlflow.entities import Run, RunStatus
 from mlflow.tracking import MlflowClient
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.exceptions import UndefinedMetricWarning
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from tqdm.auto import tqdm
 
@@ -21,6 +22,9 @@ from model_training import train_optimize  # noqa: F401
 
 # check if the issue was fixed in the latest version of the library: https://github.com/mlflow/mlflow/issues/10709
 warnings.filterwarnings("ignore", category=FutureWarning)
+
+# Convert UndefinedMetricWarning to an exception
+warnings.filterwarnings("error", category=UndefinedMetricWarning)
 
 
 def get_dataset(data: Literal["train", "test"] = "train") -> pd.DataFrame:
@@ -295,6 +299,10 @@ def train(
         mlflow_client.set_terminated(
             run_id, status=RunStatus.to_string(RunStatus.FINISHED)
         )
+    except UndefinedMetricWarning:
+        import pdb
+
+        pdb.set_trace()
 
     except Exception as e:
         print(f"Error occurred: {e}")
@@ -564,4 +572,5 @@ if __name__ == "__main__":
 
     path = os.path.join(submission_folder, filename)
 
+    y_pred_df.to_csv(path, index=False)
     y_pred_df.to_csv(path, index=False)
