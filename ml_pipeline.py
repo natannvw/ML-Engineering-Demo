@@ -586,4 +586,6 @@ if __name__ == "__main__":
 
     path = os.path.join(submission_folder, filename)
 
+    y_pred_df.Survived = y_pred_df.Survived.astype("int")
+
     y_pred_df.to_csv(path, index=False)
