@@ -11,6 +11,9 @@ This project is a work in progress, and I am actively updating it with new featu
 ## Technology Stack
 - **Language:** Python
 - **Key Libraries:** Pandas, Scikit-Learn, MLflow, Ray
+- 
+### Prerequisites
+`pip install -r requierements.txt`
 
 ## Project Goals and Objectives
 - Implement and evaluate different machine learning models.
